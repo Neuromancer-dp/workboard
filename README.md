@@ -2,6 +2,8 @@
 
 A private desktop chat for local [Ollama](https://ollama.com) models. Tauri v2 (Rust) + vanilla TypeScript.
 
+![Chat window: markdown reply with table and highlighted code](docs/screenshot.png)
+
 - Everything is bundled: no CDN, no remote scripts, no telemetry, strict CSP. The webview has **no network access at all**.
 - All network I/O (Ollama, DuckDuckGo) happens in Rust. Ollama is only ever contacted on `127.0.0.1`.
 - Chats, attachments and settings live in one SQLite file: `~/.local/share/dev.bingus.chat/chat.db`.

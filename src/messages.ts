@@ -65,6 +65,21 @@ export function userRow(text: string, atts: AttView[], blobs: BlobUrls): HTMLEle
   return row;
 }
 
+/**
+ * Reveal a share of the backlog each frame: a few characters when little is waiting (steady typing),
+ * proportionally more when a burst arrives so the view never lags far behind the model.
+ */
+export function nextReveal(text: string, shown: number): number {
+  const backlog = text.length - shown;
+  if (backlog <= 0) return text.length;
+  let n = shown + Math.max(2, Math.ceil(backlog / 8));
+  if (n < text.length) {
+    const c = text.charCodeAt(n - 1);
+    if (c >= 0xd800 && c <= 0xdbff) n++; // never split a surrogate pair
+  }
+  return Math.min(n, text.length);
+}
+
 /** One assistant reply: collapsed thinking block, markdown body, sources, notes and stats. */
 export class AssistantRow {
   readonly el = h('div', 'row assistant');
@@ -72,6 +87,8 @@ export class AssistantRow {
   thinking = '';
   private live = false;
   private raf = 0;
+  /** how much of `content` has been revealed on screen (smooth streaming) */
+  private shown = 0;
   private details: HTMLDetailsElement | null = null;
   private summary: HTMLElement | null = null;
   private thinkBody: HTMLElement | null = null;
@@ -103,6 +120,7 @@ export class AssistantRow {
   setText(content: string, thinking: string): void {
     this.content = content;
     this.thinking = thinking;
+    this.shown = content.length;
     this.paint();
   }
 
@@ -117,10 +135,14 @@ export class AssistantRow {
     if (this.raf) cancelAnimationFrame(this.raf);
     this.raf = 0;
     const stick = this.host.beforeMutate();
-    const s = splitThinking(this.content, this.live);
+    if (final || !this.live) this.shown = this.content.length;
+    else this.shown = nextReveal(this.content, this.shown);
+    const s = splitThinking(this.content.slice(0, this.shown), this.live);
     this.showThinking(mergeThinking(this.thinking, s.thinking), this.live && s.open);
     this.md.update(s.answer, final || !this.live);
     this.host.afterMutate(stick);
+    // bursty network chunks are drained over several frames instead of landing all at once
+    if (this.live && this.shown < this.content.length) this.raf = requestAnimationFrame(() => this.paint());
   }
 
   private showThinking(text: string, open: boolean): void {
