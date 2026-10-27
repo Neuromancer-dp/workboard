@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>chat</title>
+<link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+<div class="glow g1"></div><div class="glow g2"></div>
+<div id="drop">drop images or PDFs</div>
+
+<div id="app">
+  <aside id="side">
+    <div class="side-top">
+      <input id="search" type="search" placeholder="Search chats  (Ctrl+K)" autocomplete="off" spellcheck="false">
+    </div>
+    <div id="convs" class="convs"></div>
+    <div class="side-bottom">
+      <button id="trashBtn" title="Deleted chats are kept for 30 days">Trash</button>
+      <span class="sp"></span>
+      <button id="settingsBtn" title="Settings, export and backup">Settings</button>
+    </div>
+  </aside>
+
+  <main id="main">
+    <header>
+      <button id="sideToggle" title="Show or hide the chat list">&#9776;</button>
+      <span class="brand">chat</span>
+      <select id="model" title="Model"></select>
+      <span id="convTitle" class="conv-title"></span>
+      <label class="ctx" title="Context window sent to Ollama (num_ctx). Bigger = more RAM and slower.">ctx
+        <select id="ctx"><option value="4096">4k</option><option value="8192" selected>8k</option><option value="16384">16k</option><option value="32768">32k</option></select>
+      </label>
+      <button id="exportMd" title="Export this chat as Markdown">Export</button>
+      <button id="clear" title="Start a new chat (the current one stays in the list)">New chat</button>
+    </header>
+
+    <div id="log"><div class="wrap" id="msgs"></div></div>
+
+    <footer>
+      <div id="notice" class="notice" hidden></div>
+      <div class="composer">
+        <div id="tray"></div>
+        <div class="inputrow">
+          <button id="attach" title="Attach images or PDFs">+</button>
+          <button id="web" title="Search the web before answering">web</button>
+          <textarea id="input" rows="1" placeholder="Message  (Enter to send, Shift+Enter for new line)"></textarea>
+          <button id="send">Send</button>
+        </div>
+      </div>
+      <div id="stats"></div>
+      <input type="file" id="file" accept="image/*,application/pdf" multiple hidden>
+    </footer>
+  </main>
+</div>
+<div id="modal-root"></div>
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>

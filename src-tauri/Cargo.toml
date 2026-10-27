@@ -1,0 +1,38 @@
+[package]
+name = "chat"
+version = "0.1.0"
+description = "Local Ollama chat"
+edition = "2021"
+
+[lib]
+name = "chat_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+base64 = "0.23.1"
+futures-util = "0.3.34"
+libc = "0.2.191"
+reqwest = { version = "0.13.5", default-features = false, features = ["rustls-no-provider", "stream", "json"] }
+rusqlite = { version = "0.41.0", features = ["bundled"] }
+rustls = { version = "0.23.46", default-features = false, features = ["ring", "std", "logging", "tls12"] }
+scraper = "0.29.0"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-single-instance = "2"
+tauri-plugin-window-state = "2"
+tokio = { version = "1.54.1", features = ["macros", "time", "sync"] }
+
+[profile.release]
+opt-level = "s"
+lto = "thin"
+codegen-units = 4
+strip = true
+panic = "abort"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "net", "io-util", "sync"] }
