@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Chat
+GenericName=Local AI chat
+Comment=Private chat for local Ollama models
+Exec=@EXEC@
+Icon=dev.bingus.chat
+Terminal=false
+Categories=Utility;
+Keywords=ollama;llm;ai;chat;
+StartupWMClass=chat
+StartupNotify=true

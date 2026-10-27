@@ -334,3 +334,24 @@ pub fn run() {
         _ => {}
     });
 }
+
+#[cfg(test)]
+mod tests {
+    use super::open_external;
+
+    #[test]
+    fn open_external_only_accepts_web_and_mail_links() {
+        for bad in [
+            "javascript:alert(1)",
+            "file:///etc/passwd",
+            "data:text/html,hi",
+            "ftp://x.example/",
+            "not a url",
+            "",
+            "tauri://localhost/x",
+            "//no-scheme.example",
+        ] {
+            assert!(open_external(bad.to_string()).is_err(), "{bad} must be refused");
+        }
+    }
+}

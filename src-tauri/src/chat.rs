@@ -402,12 +402,18 @@ mod tests {
 
     /// Minimal HTTP server: answers /api/show and streams `lines` for /api/chat, with `gap` between lines.
     async fn mock_ollama(lines: Vec<String>, gap: Duration, hang_after: bool) -> u16 {
+        mock_ollama_rec(lines, gap, hang_after, Arc::new(Mutex::new(Vec::new()))).await
+    }
+
+    /// Same, and every request body the mock sees is appended to `rec`.
+    async fn mock_ollama_rec(lines: Vec<String>, gap: Duration, hang_after: bool, rec: Arc<Mutex<Vec<String>>>) -> u16 {
         let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = l.local_addr().unwrap().port();
         tokio::spawn(async move {
             loop {
                 let Ok((mut s, _)) = l.accept().await else { return };
                 let lines = lines.clone();
+                let rec = rec.clone();
                 tokio::spawn(async move {
                     let mut buf = vec![0u8; 65536];
                     let mut got = Vec::new();
@@ -426,6 +432,9 @@ mod tests {
                         }
                     }
                     let req = String::from_utf8_lossy(&got).to_string();
+                    if let Some(i) = req.find("\r\n\r\n") {
+                        rec.lock().unwrap().push(format!("{}\n{}", req.lines().next().unwrap_or(""), &req[i + 4..]));
+                    }
                     if req.starts_with("POST /api/show") {
                         let b = r#"{"capabilities":["completion"]}"#;
                         let _ = s
@@ -494,6 +503,33 @@ mod tests {
         assert!(matches!(ev.last(), Some(ChatEvent::Done { status, .. }) if status == "complete"));
         let text: String = ev.iter().filter_map(|e| if let ChatEvent::Delta { content, .. } = e { Some(content.as_str()) } else { None }).collect();
         assert_eq!(text, "Hello ✓");
+    }
+
+    #[tokio::test]
+    async fn request_carries_model_ctx_history_and_this_turns_web_block_only() {
+        let rec = Arc::new(Mutex::new(Vec::new()));
+        let port = mock_ollama_rec(vec![l("ok", ""), done()], Duration::from_millis(1), false, rec.clone()).await;
+        let sh = shared();
+        // first turn, then a second turn in the same conversation
+        let t1 = sh.db.begin_turn(None, "m", "first question", &[]).unwrap();
+        sh.db.finalize(t1.assistant_message_id, "<think>x</think>first answer", "", "complete", &json!({})).unwrap();
+        let t2 = sh.db.begin_turn(Some(t1.conversation_id), "m", "second question", &[]).unwrap();
+        let (emit, _) = collect();
+        let mut a = args("second question");
+        a.num_ctx = 16384;
+        run_turn(sh.clone(), emit, t2, a, port, Arc::new(Notify::new())).await;
+
+        let recs = rec.lock().unwrap();
+        let chat = recs.iter().find(|r| r.starts_with("POST /api/chat")).expect("chat request");
+        let body: Value = serde_json::from_str(chat.split_once('\n').unwrap().1).unwrap();
+        assert_eq!(body["model"], "m");
+        assert_eq!(body["stream"], true);
+        assert_eq!(body["options"]["num_ctx"], 16384);
+        let msgs = body["messages"].as_array().unwrap();
+        let roles: Vec<&str> = msgs.iter().map(|m| m["role"].as_str().unwrap()).collect();
+        assert_eq!(roles, ["user", "assistant", "user"]);
+        assert_eq!(msgs[1]["content"], "first answer", "stored <think> is not replayed");
+        assert_eq!(msgs[2]["content"], "second question", "web off: no injected text");
     }
 
     #[tokio::test]
